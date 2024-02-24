@@ -1,0 +1,25 @@
+{
+  "template": "https://github.com/ZeroCool940711/cookiecutter-python-template",
+  "commit": "e8cfc711b3ba9c189674e033bb35a6d53a4367e4",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "full_name": "Alejandro Gil",
+      "company_name": "Sygil-Dev",
+      "email": "alejandrogilelias940711@gmail.com",
+      "project_name": "Yose",
+      "project_slug": "yose",
+      "module_name": "yose",
+      "project_short_description": "Your Own Search Engine that can be completely customized.",
+      "package_manager": "pip",
+      "use_notebooks": "no",
+      "use_docker": "no",
+      "ci_pipeline": "none",
+      "create_cli": "no",
+      "config_file": "none",
+      "code_formatter": "black",
+      "editor_settings": "vscode",
+      "_template": "https://github.com/ZeroCool940711/cookiecutter-python-template"
+    }
+  }
+}
