@@ -1,14 +1,14 @@
 import ctypes
 import os
 
-import yose
 from whoosh import index
 
-from .config.db.Model import Options
+import yose
+from yose.config.db.Model import Options
 
 if not os.path.exists("db"):
     os.mkdir("db")
-    
+
 module_name = yose
 
 APP_ID = f"yose.Sygil-Dev.version.{module_name.__version__}"
