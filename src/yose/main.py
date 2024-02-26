@@ -1,12 +1,30 @@
+import asyncio
 import sys
+from typing import List
 
 import requests
 from loguru import logger
-from nicegui import app, color, icon, ui
+from nicegui import app, color, events, icon, ui
 
-from yose.utils import first_run, get_options, set_icon
+from yose.utils import (
+    add_document,
+    first_run,
+    get_all_documents,
+    get_options,
+    search_documents,
+    set_icon,
+)
 
 app.native.window_args["resizable"] = True
+
+
+# def startup():
+#     loop = asyncio.get_running_loop()
+#     loop.set_debug(True)
+#     loop.slow_callback_duration = 0.1
+
+
+# app.on_startup(startup)
 
 ui.query(".nicegui-content").classes("p-0")
 
@@ -118,22 +136,67 @@ def admin_panel():
     SideBar()
 
 
+def get_or_create_search_index(query, max_results=50, page=0):
+    results = requests.get(
+        f"http://localhost:8090/yacysearch.json?query={query}&Enter=&auth=&verify=ifexist&contentdom=image&nav=location%2Chosts%2Cauthors%2Cnamespace%2Ctopics%2Cfiletype%2Cprotocol%2Clanguage&startRecord={page * max_results}&indexof=off&meanCount=5&resource=global&prefermaskfilter=&maximumRecords={max_results}&timezoneOffset=420"
+    ).json()["channels"][0]["items"]
+
+    # async for result in results:
+    #     await add_document(result)
+
+    return results
+
+
 @ui.page("/search/web")
-def search_web(query: str = ""):
+def web_search_page(query: str = ""):
     ui.label("Web search page not implemented yet.")
 
 
-@ui.page("/search/images")
-def search_images(query: str = "* /date", page: int = 0, max_results: int = 50):
-    SearchFilters()
+class Lightbox:
+    """A thumbnail gallery where each image can be clicked to enlarge.
+    Inspired by https://lokeshdhakar.com/projects/lightbox2/.
+    """
 
-    def infinite_scroll(
+    def __init__(self) -> None:
+        with ui.dialog().props("maximized").classes("bg-transparent") as self.dialog:
+            ui.keyboard(self._handle_key)
+            self.large_image = ui.image().props("no-spinner fit=scale-down")
+        self.image_list: List[str] = []
+
+    def add_image(self, thumb_url: str, orig_url: str) -> ui.image:
+        """Place a thumbnail image in the UI and make it clickable to enlarge."""
+        self.image_list.append(orig_url)
+        with ui.button(on_click=lambda: self._open(orig_url)).props(
+            "flat dense square"
+        ):
+            return ui.image(thumb_url)
+
+    def _handle_key(self, event_args: events.KeyEventArguments) -> None:
+        if not event_args.action.keydown:
+            return
+        if event_args.key.escape:
+            self.dialog.close()
+        image_index = self.image_list.index(self.large_image.source)
+        if event_args.key.arrow_left and image_index > 0:
+            self._open(self.image_list[image_index - 1])
+        if event_args.key.arrow_right and image_index < len(self.image_list) - 1:
+            self._open(self.image_list[image_index + 1])
+
+    def _open(self, url: str) -> None:
+        self.large_image.set_source(url)
+        self.dialog.open()
+
+
+@ui.page("/search/images")
+def image_search_page(query: str = "* /date", page: int = 0, max_results: int = 50):
+    SearchFilters()
+    lightbox = Lightbox()
+
+    async def infinite_scroll(
         query: str = "* /date", page: int = 0, max_results: int = max_results
     ):
         with results_grid:
-            for result in requests.get(
-                f"http://localhost:8090/yacysearch.json?query={query}&Enter=&auth=&verify=ifexist&contentdom=image&nav=location%2Chosts%2Cauthors%2Cnamespace%2Ctopics%2Cfiletype%2Cprotocol%2Clanguage&startRecord={page * max_results}&indexof=off&meanCount=5&resource=global&prefermaskfilter=&maximumRecords={max_results}&timezoneOffset=420"
-            ).json()["channels"][0]["items"]:
+            async for result in get_or_create_search_index(query, max_results, page):
                 with ui.card():
                     ui.image(result["image"])
                     ui.link(result["title"], result["image"])
@@ -166,7 +229,7 @@ def search_images(query: str = "* /date", page: int = 0, max_results: int = 50):
                     ui.space()
 
                 search_field = (
-                    ui.input(label="Search the web...")
+                    ui.input(label="Search the web...", value=query)
                     .style(
                         "width: 60%; bg-opacity: 0.2; drop-shadow: lg; backdrop-blur: lg; text-shadow: 2px 2px 2px #000; align-self: end;"
                     )
@@ -238,15 +301,18 @@ def search_images(query: str = "* /date", page: int = 0, max_results: int = 50):
         with ui.grid(columns=6, rows=6).style(
             "object-fit: scale-down; justify-content: center; margin-top: 5%; "
         ).props("scrollable").classes("mx-auto") as results_grid:
-            for result in requests.get(
-                f"http://localhost:8090/yacysearch.json?query={query}&Enter=&auth=&verify=ifexist&contentdom=image&nav=location%2Chosts%2Cauthors%2Cnamespace%2Ctopics%2Cfiletype%2Cprotocol%2Clanguage&startRecord={page * max_results}&indexof=off&meanCount=5&resource=global&prefermaskfilter=&maximumRecords={max_results}&timezoneOffset=420"
-            ).json()["channels"][0]["items"]:
+            for result in get_or_create_search_index(query, max_results, page):
                 # logger.debug(result)
 
                 with ui.card():
-                    ui.image(result["image"]).style(
-                        "object-fit: scale-down; width: 100%; height: 100%;"
-                    )
+                    # ui.image(result["image"]).style(
+                    #     "object-fit: scale-down; width: 100%; height: 100%;"
+                    # )
+                    # the lightbox allows us to add images which can be opened in a full screen dialog
+                    lightbox.add_image(
+                        thumb_url=f"{result['image']}",
+                        orig_url=f"{result['image']}",
+                    ).classes("w-[300px] h-[200px]")
                     ui.link(result["title"], result["image"])
                     ui.label(result["host"])
 
@@ -466,7 +532,7 @@ class SideBar(ui.element):
 
 
 @ui.page("/", title="Yose")
-def index():
+def home_page():
     ui.image(IMAGE_URL).style(
         "position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
     )
