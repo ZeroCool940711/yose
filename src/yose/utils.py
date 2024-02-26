@@ -153,7 +153,7 @@ def make_document_index(indexname="documents", schema=IndexItems) -> index.Index
     return ix
 
 
-def add_document(document: dict, indexname="items", schema=IndexItems) -> None:
+def add_document(document: dict, indexname="documents", schema=IndexItems) -> None:
     """
     Add a document to the search index.
 
@@ -184,7 +184,24 @@ def add_document(document: dict, indexname="items", schema=IndexItems) -> None:
     writer.commit(merge=True, optimize=True)
 
 
-def delete_document(guid: str, indexname="items", schema=IndexItems) -> None:
+# add_document(
+#     {
+#         "guid": "Dvs9oVBaG9bw",
+#         "link": "https:\/\/trac.ietf.org\/trac\/irtf\/changeset\/350\/www?format=zip&new=350%22,",
+#         "file": "www",
+#         "host": "trac.ietf.org",
+#         "protocol": "https",
+#         "pubDate": "Thu, 09 Feb 2023 01:49:34 +0000",
+#         "size": "4355",
+#         "sizename": "4 kbyte",
+#         "path": "\/trac\/irtf\/changeset\/350",
+#         "title": "www",
+#         "description": "",
+#     }
+# )
+
+
+def delete_document(guid: str, indexname="documents", schema=IndexItems) -> None:
     """
     Delete a document from the search index based on its GUID.
 
@@ -199,7 +216,7 @@ def delete_document(guid: str, indexname="items", schema=IndexItems) -> None:
     writer.commit(merge=True, optimize=True)
 
 
-def update_document(document: dict, indexname="items", schema=IndexItems) -> None:
+def update_document(document: dict, indexname="documents", schema=IndexItems) -> None:
     ix = index.open_dir("db", indexname=indexname, schema=schema)
     writer = ix.writer()
     writer.update_document(**document)
@@ -207,14 +224,24 @@ def update_document(document: dict, indexname="items", schema=IndexItems) -> Non
 
 
 def search_documents(
-    query: str, fields: list = None, indexname="items", schema=IndexItems
+    query: str,
+    fields: list = [
+        "title",
+        "content",
+        "author",
+        "category",
+        "keywords",
+        "description",
+    ],
+    indexname="documents",
+    schema=IndexItems,
 ) -> list:
     ix = index.open_dir("db", indexname=indexname, schema=schema)
     query_parser = MultifieldParser(fields, ix.schema)
 
     query_parser.add_plugin(FuzzyTermPlugin())
 
-    q = query.parse(query)
+    q = query_parser.parse(query)
 
     searcher = ix.searcher()
     results = searcher.search(q, terms=True)
@@ -222,16 +249,19 @@ def search_documents(
     return list(results)
 
 
-# print(search_documents_by_name("test"))
+# print(search_documents("www"))
 
 
-def get_all_documents(indexname="items", schema=IndexItems) -> list:
+def get_all_documents(indexname="documents", schema=IndexItems) -> list:
     ix = index.open_dir("db", indexname=indexname, schema=schema)
 
     with ix.searcher() as searcher:
         results = searcher.documents()
 
         return list(results)
+
+
+# print(get_all_documents())
 
 
 def set_default_config(reset=False):
