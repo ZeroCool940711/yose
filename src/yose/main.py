@@ -124,12 +124,31 @@ def search_web(query: str = ""):
 
 
 @ui.page("/search/images")
-def search_images(query: str = "* /date"):
+def search_images(query: str = "* /date", page: int = 0, max_results: int = 50):
     SearchFilters()
 
-    # ui.image(IMAGE_URL).style(
-    #     "position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
-    # )
+    def infinite_scroll(
+        query: str = "* /date", page: int = 0, max_results: int = max_results
+    ):
+        with results_grid:
+            for result in requests.get(
+                f"http://localhost:8090/yacysearch.json?query={query}&Enter=&auth=&verify=ifexist&contentdom=image&nav=location%2Chosts%2Cauthors%2Cnamespace%2Ctopics%2Cfiletype%2Cprotocol%2Clanguage&startRecord={page * max_results}&indexof=off&meanCount=5&resource=global&prefermaskfilter=&maximumRecords={max_results}&timezoneOffset=420"
+            ).json()["channels"][0]["items"]:
+                with ui.card():
+                    ui.image(result["image"])
+                    ui.link(result["title"], result["image"])
+                    ui.label(result["host"])
+
+        logger.debug(f"page: {page + 1}")
+
+        load_more = ui.button(
+            "Load More",
+            on_click=lambda e: [
+                infinite_scroll(query, page + 1, max_results),
+                load_more.set_visibility(False),
+            ],
+        ).style("align-self: center; width: 100%;")
+
     with ui.column().style("width: 100%; height: 100%; padding: 0; margin: 0;"):
         with ui.page_sticky("top").style(
             "width: 100%; gap: 1px; padding: 0; margin-left: 2%; z-index: 1000 !important;"
@@ -155,7 +174,9 @@ def search_images(query: str = "* /date"):
                     .classes("elevation-4")
                 ).on(
                     "keydown.enter",
-                    lambda e: print(f"searching...{search_field.value}"),
+                    lambda e: ui.navigate.to(
+                        f"/search/images?query={search_field.value}"
+                    ),
                 )
 
                 ui.button(
@@ -215,20 +236,27 @@ def search_images(query: str = "* /date"):
                 ).drop_shadow("lg").backdrop_blur("lg").opacity("0.2")
 
         with ui.grid(columns=6, rows=6).style(
-            "width: auto; height: auto; margin-top: 5%; gap: 4px; align-items: center; justify-content: center;"
-        ).props("scrollable").classes("mx-auto"):
+            "object-fit: scale-down; justify-content: center; margin-top: 5%; "
+        ).props("scrollable").classes("mx-auto") as results_grid:
             for result in requests.get(
-                f"http://localhost:8090/yacysearch.json?query={query}&Enter=&auth=&verify=ifexist&contentdom=image&nav=location%2Chosts%2Cauthors%2Cnamespace%2Ctopics%2Cfiletype%2Cprotocol%2Clanguage&startRecord=0&indexof=off&meanCount=5&resource=global&prefermaskfilter=&maximumRecords=100&timezoneOffset=420"
+                f"http://localhost:8090/yacysearch.json?query={query}&Enter=&auth=&verify=ifexist&contentdom=image&nav=location%2Chosts%2Cauthors%2Cnamespace%2Ctopics%2Cfiletype%2Cprotocol%2Clanguage&startRecord={page * max_results}&indexof=off&meanCount=5&resource=global&prefermaskfilter=&maximumRecords={max_results}&timezoneOffset=420"
             ).json()["channels"][0]["items"]:
                 # logger.debug(result)
 
                 with ui.card():
-                    ui.image(result["image"])
+                    ui.image(result["image"]).style(
+                        "object-fit: scale-down; width: 100%; height: 100%;"
+                    )
                     ui.link(result["title"], result["image"])
                     ui.label(result["host"])
-                    # ui.label(f"{result['width']} x {result['height']}").style(
-                    #     "text-align: center;"
-                    # )
+
+        load_more = ui.button(
+            "Load More",
+            on_click=lambda e: [
+                infinite_scroll(query, page + 1, max_results),
+                load_more.set_visibility(False),
+            ],
+        ).style("align-self: center; width: 100%;")
 
 
 @ui.page("/search/videos")
