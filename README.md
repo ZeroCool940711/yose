@@ -2,6 +2,11 @@
 
 Your Own Search Engine that can be completely customized.
 
+## Screenshots
+
+![alt text](assets/home_page.png)
+![alt text](assets/image_search_page.png)
+
 ## Getting Started
 
 To set up your local development environment, please use a fresh virtual environment (`python -m venv .venv`), then run:
