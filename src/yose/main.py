@@ -28,8 +28,6 @@ app.native.window_args["resizable"] = True
 
 ui.query(".nicegui-content").classes("p-0")
 
-IMAGE_URL = "https://picsum.photos/1900/1000"
-
 
 @ui.page("/search")
 def search_page():
@@ -192,17 +190,20 @@ def image_search_page(query: str = "* /date", page: int = 0, max_results: int = 
     SearchFilters()
     lightbox = Lightbox()
 
-    async def infinite_scroll(
+    def infinite_scroll(
         query: str = "* /date", page: int = 0, max_results: int = max_results
     ):
         with results_grid:
-            async for result in get_or_create_search_index(query, max_results, page):
+            for result in get_or_create_search_index(query, max_results, page):
                 with ui.card():
-                    ui.image(result["image"])
+                    lightbox.add_image(
+                        thumb_url=f"{result['image']}",
+                        orig_url=f"{result['image']}",
+                    ).classes("w-[300px] h-[200px]")
                     ui.link(result["title"], result["image"])
                     ui.label(result["host"])
 
-        logger.debug(f"page: {page + 1}")
+        #logger.debug(f"page: {page + 1}")
 
         load_more = ui.button(
             "Load More",
@@ -305,10 +306,6 @@ def image_search_page(query: str = "* /date", page: int = 0, max_results: int = 
                 # logger.debug(result)
 
                 with ui.card():
-                    # ui.image(result["image"]).style(
-                    #     "object-fit: scale-down; width: 100%; height: 100%;"
-                    # )
-                    # the lightbox allows us to add images which can be opened in a full screen dialog
                     lightbox.add_image(
                         thumb_url=f"{result['image']}",
                         orig_url=f"{result['image']}",
@@ -533,7 +530,7 @@ class SideBar(ui.element):
 
 @ui.page("/", title="Yose")
 def home_page():
-    ui.image(IMAGE_URL).style(
+    ui.image("https://picsum.photos/1900/1000").style(
         "position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
     )
 
